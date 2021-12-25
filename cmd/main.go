@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/sderohan/getir-go-assignment/app/config"
 	"github.com/sderohan/getir-go-assignment/app/controller"
 	"github.com/sderohan/getir-go-assignment/app/models"
-	"github.com/sderohan/getir-go-assignment/app/routes.go"
 	"github.com/sderohan/getir-go-assignment/pkg/db"
 )
 
@@ -47,34 +48,52 @@ func main() {
 	db := config.Init(connParam)
 
 	// instantiate app
-	rts := &routes.Router{
-		&controller.Controller{
-			&models.DBWriter{DB: db},
-		},
+	rts := &controller.Controller{
+		&models.DBWriter{DB: db},
 	}
 
 	// read server configuraion
 	serverConfig := appConfig.GetAppConfig().Server
 
+	// request handler
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+		// read the request path
+		url := strings.Split(html.EscapeString(r.URL.Path), "/")
+		path := ""
+
+		if len(url) > 0 {
+			path = strings.Trim(url[1], " ")
+		} else {
+			http.Error(w, "Requested resource not found", http.StatusNotFound)
+		}
+
+		switch r.Method {
+
+		case http.MethodGet:
+			if path == "in-memory" {
+				rts.PrintParams(w, r)
+			} else {
+				http.Error(w, "Requested resource not found", http.StatusNotFound)
+			}
+
+		case http.MethodPost:
+			if path == "in-memory" {
+				rts.EchoAPI(w, r)
+			} else if path == "fetch-data" {
+				rts.FetchData(w, r)
+			} else {
+				http.Error(w, "Requested resource not found", http.StatusNotFound)
+			}
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	// start server and listen for requests
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", serverConfig.Port), rts.InitRoutes()); err != nil {
+	log.Printf("Server listening on port %s", serverConfig.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", serverConfig.Port), nil); err != nil {
 		log.Fatalf(err.Error())
 	}
-
-	// Test database
-	// collection := clientDB.Database(connParam.Database).Collection("records")
-	// cursor, err := collection.Find(context.TODO(), bson.D{})
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// var results []bson.M
-	// if err = cursor.All(context.TODO(), &results); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// for _, result := range results {
-	// 	fmt.Println(result)
-	// }
 }
-
-// mongodb+srv://challengeUser:WUMglwNBaydH8Yvu@challenge-xzwqd.mongodb.net/getir-case-study?retryWrites=true
