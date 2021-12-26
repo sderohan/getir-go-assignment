@@ -24,5 +24,3 @@ func (c ConnectionURL) String() string {
 	connectionString := fmt.Sprintf("%s://%s:%s@%s/%s?%s", prefix, c.UserName, c.Password, c.Host, c.Database, options)
 	return connectionString
 }
-
-// mongodb+srv://challengeUser:WUMglwNBaydH8Yvu@challenge-xzwqd.mongodb.net/getir-case-study?retryWrites=true
